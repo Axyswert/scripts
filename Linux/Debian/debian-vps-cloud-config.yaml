@@ -1,0 +1,103 @@
+#cloud-config
+
+users:
+  - name: mike
+    groups: [sudo]
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - <ssh-ed25519 key>
+
+disable_root: true
+ssh_pwauth: false
+
+package_update: true
+package_upgrade: true
+packages:
+  - fail2ban
+  - nftables
+  - nano
+  - curl
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/ssh-hardening.conf
+    permissions: '0600'
+    content: |
+      Port 22
+
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      ChallengeResponseAuthentication no
+      PubkeyAuthentication yes
+      
+      AllowUsers mike
+      AllowTcpForwarding yes
+      AllowAgentForwarding no
+      X11Forwarding no
+
+      AuthorizedKeysFile .ssh/authorized_keys
+
+  - path: /etc/fail2ban/jail.local
+    permissions: '0644'
+    content: |
+      [DEFAULT]
+      bantime  = 1h
+      findtime = 10m
+      maxretry = 5
+      backend  = systemd
+
+      ignoreip = 127.0.0.0/8 ::1
+
+      banaction          = nftables-multiport
+      banaction_allports = nftables-allports
+
+      [sshd]
+      enabled = true
+      port    = 22
+
+  - path: /etc/systemd/system/fail2ban.service.d/override.conf
+    permissions: '0644'
+    content: |
+      [Unit]
+      After=nftables.service
+      Wants=nftables.service
+
+  - path: /etc/nftables.conf
+    permissions: '0600'
+    content: |
+      flush ruleset
+
+      table inet filter {
+        chain input {
+          type filter hook input priority 0;
+          policy drop;
+
+          ct state invalid drop
+          ct state { established, related } accept
+
+          iif "lo" accept
+
+          tcp dport 22 accept
+          udp dport 51820 accept
+
+          ip  protocol icmp   accept
+          ip6 nexthdr  icmpv6 accept
+        }
+
+        chain forward {
+          type filter hook forward priority 0;
+          policy drop;
+        }
+
+        chain output {
+          type filter hook output priority 0;
+          policy accept;
+        }
+      }
+
+runcmd:
+  - systemctl enable --now nftables
+  - systemctl enable --now fail2ban
+  - systemctl reload ssh
