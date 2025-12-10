@@ -22,6 +22,7 @@ packages:
 
 write_files:
   - path: /etc/ssh/sshd_config.d/ssh-hardening.conf
+    owner: root:root
     permissions: '0600'
     content: |
       Port 22
@@ -29,7 +30,6 @@ write_files:
       PermitRootLogin no
       PasswordAuthentication no
       KbdInteractiveAuthentication no
-      ChallengeResponseAuthentication no
       PubkeyAuthentication yes
       
       AllowUsers mike
@@ -37,9 +37,14 @@ write_files:
       AllowAgentForwarding no
       X11Forwarding no
 
+      LoginGraceTime 60
+      ClientAliveInterval 300
+      ClientAliveCountMax 3
+
       AuthorizedKeysFile .ssh/authorized_keys
 
   - path: /etc/fail2ban/jail.local
+    owner: root:root
     permissions: '0644'
     content: |
       [DEFAULT]
@@ -58,13 +63,16 @@ write_files:
       port    = 22
 
   - path: /etc/systemd/system/fail2ban.service.d/override.conf
+    owner: root:root
     permissions: '0644'
     content: |
       [Unit]
       After=nftables.service
       Wants=nftables.service
+      PartOf=nftables.service
 
   - path: /etc/nftables.conf
+    owner: root:root
     permissions: '0600'
     content: |
       flush ruleset
@@ -98,6 +106,9 @@ write_files:
       }
 
 runcmd:
+  - systemctl mask --now ufw
+  - systemctl daemon-reload
+
   - systemctl enable --now nftables
   - systemctl enable --now fail2ban
   - systemctl reload ssh
