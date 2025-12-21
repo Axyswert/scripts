@@ -48,7 +48,11 @@ write_files:
     permissions: '0644'
     content: |
       [DEFAULT]
-      bantime  = 1h
+      bantime           = 1h
+      bantime.increment = true
+      bantime.factor    = 4
+      bantime.max       = 15552000   # 6 months
+
       findtime = 10m
       maxretry = 5
       backend  = systemd
@@ -57,10 +61,12 @@ write_files:
 
       banaction          = nftables-multiport
       banaction_allports = nftables-allports
+      chain              = input
 
       [sshd]
+      banaction = nftables[type=multiport]
       enabled = true
-      port    = 22
+      port    = ssh
 
   - path: /etc/systemd/system/fail2ban.service.d/override.conf
     owner: root:root
