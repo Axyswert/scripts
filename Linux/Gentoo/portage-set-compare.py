@@ -1,9 +1,21 @@
 #!/usr/bin/python3
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from collections.abc import Iterable
-from pathlib import Path
+"""
+Personal one-off utility for comparing Portage set entries across two Gentoo
+set directories during system administration.
+
+It was written to solve a specific workflow problem on my own machines, and its
+design (including traversal and performance choices) deliberately reflects the
+constraints of that narrow use case rather than general utility.
+
+It has been very useful to me, but it is not a general-purpose tool and is not
+recommended for broader use.
+"""
+
 import sys
+from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 from tabulate import tabulate
 
